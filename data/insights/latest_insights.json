@@ -1,0 +1,13 @@
+[
+  {
+    "id": "d1182a07-4b54-4652-a834-e83c549f5b64",
+    "severity": "WARNING",
+    "category": "yield",
+    "title": "Unexplained efficiency drop in ZA-N",
+    "explanation": "Efficiency dropped -16.0% without correlated sensor anomalies.",
+    "recommendation": "Review operator logs and ore feed quality for this zone.",
+    "confidence": 0.65,
+    "data_refs": [],
+    "generated_at": "2026-04-08T18:36:58.173848+00:00"
+  }
+]

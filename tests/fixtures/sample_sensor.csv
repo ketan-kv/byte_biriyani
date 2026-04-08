@@ -1,0 +1,4 @@
+timestamp,equipment_id,sensor_type,value,unit,zone_id
+2024-03-15T08:32:00Z,PUMP-003,vibration,14.7,mm/s,ZA-N
+2024-03-15T08:33:00Z,PUMP-003,vibration,15.4,mm/s,ZA-N
+2024-03-15T08:34:00Z,PUMP-003,temperature,71.2,C,ZA-N

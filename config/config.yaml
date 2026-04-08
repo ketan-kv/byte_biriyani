@@ -1,0 +1,20 @@
+paths:
+  raw_root: data/raw
+  geological_raw: data/raw/geological
+  sensor_raw: data/raw/sensor
+  production_raw: data/raw/production
+  incidents_raw: data/raw/incidents
+  sqlite_path: data/structured/mineral_db.sqlite
+  sensor_parquet_path: data/structured/sensor_data.parquet
+  insights_path: data/insights/latest_insights.json
+
+scheduler:
+  run_hours:
+    - 6
+    - 18
+  anomaly_poll_seconds: 30
+
+thresholds:
+  zscore_threshold: 3.0
+  failure_risk_threshold: 0.7
+  efficiency_drop_threshold_pct: 10.0

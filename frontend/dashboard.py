@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
 import sqlite3
 import streamlit as st
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from agents.analysis_agent import AnalysisAgent
+from frontend.pages import domain_upload as domain_upload_page
 from frontend.pages import insights as insights_page
 from frontend.pages import overview as overview_page
 from frontend.pages import raw_vs_structured as raw_vs_structured_page
@@ -52,7 +59,7 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Page",
-        ["Overview", "Sensor Monitor", "Insights", "Raw vs Structured"],
+        ["Overview", "Sensor Monitor", "Insights", "Raw vs Structured", "Domain Upload"],
     )
 
     analysis = run_analysis(db_path, sensor_path)
@@ -65,6 +72,8 @@ def main() -> None:
         sensor_monitor_page.render(sensor_df)
     elif page == "Insights":
         insights_page.render(insights)
+    elif page == "Domain Upload":
+        domain_upload_page.render()
     else:
         raw_vs_structured_page.render(db_path)
 

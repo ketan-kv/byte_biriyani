@@ -2,12 +2,23 @@
 from __future__ import annotations
 
 import json
+import os
 
 import ollama
 import pandas as pd
+from dotenv import load_dotenv
 
 
-OLLAMA_MODEL = "llama3.2:3b"
+load_dotenv()
+
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:latest")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST")
+OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+
+client_kwargs = {"host": OLLAMA_HOST} if OLLAMA_HOST else {}
+if OLLAMA_API_KEY:
+    client_kwargs["headers"] = {"Authorization": f"Bearer {OLLAMA_API_KEY}"}
+OLLAMA_CLIENT = ollama.Client(**client_kwargs)
 
 
 class IntentAgent:
@@ -31,7 +42,7 @@ class IntentAgent:
         )
 
         try:
-            response = ollama.chat(
+            response = OLLAMA_CLIENT.chat(
                 model=OLLAMA_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 format="json",

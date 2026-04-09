@@ -5,6 +5,8 @@ import json
 import queue
 from pathlib import Path
 
+import pandas as pd
+
 from agents.analysis_agent import AnalysisAgent
 from agents.insight_agent import InsightAgent
 from agents.structuring_agent import StructuringAgent
@@ -30,9 +32,10 @@ class OrchestratorAgent:
             "structuring": StructuringAgent(),
             "analysis": AnalysisAgent(self.db_path, self.sensor_parquet_path),
             "insight": InsightAgent(),
-            "intent": IntentAgent(),       # ADD THIS
-            "research": ResearchAgent(),   # ADD THIS
+            "intent": IntentAgent(),
+            "research": ResearchAgent(),
         }
+
     def on_new_file(self, filepath: str, file_type: str) -> dict:
         logger.info("Processing file %s (%s)", filepath, file_type)
         raw_data = ingest(filepath, file_type)
@@ -62,24 +65,99 @@ class OrchestratorAgent:
         self._write_insights(insights)
         return {"analysis": results, "insights": insights}
 
-        def run_domain_pipeline(self, df: pd.DataFrame) -> dict:
-        #Domain-adaptive pipeline for any uploaded CSV/Excel.
-        import pandas as pd  # already imported at module level, just for clarity
+    def run_domain_pipeline(self, df: pd.DataFrame, user_preferences: dict | None = None) -> dict:
+        # Domain-adaptive pipeline for any uploaded CSV/Excel.
+        prefs = user_preferences or {}
+        pipeline_logs: list[dict] = []
+
+        pipeline_logs.append(
+            {
+                "step": "input",
+                "agent": "orchestrator",
+                "status": "ok",
+                "details": {
+                    "rows": int(df.shape[0]),
+                    "columns": int(df.shape[1]),
+                    "user_preferences": prefs,
+                },
+                "editable_controls": [
+                    {
+                        "name": "missing_strategy",
+                        "type": "select",
+                        "options": ["none", "mean", "median", "zero", "drop"],
+                        "current": str(prefs.get("missing_strategy", "none")),
+                    }
+                ],
+            }
+        )
 
         # Step 1: detect domain
         domain, confidence = self.agents["intent"].detect_with_confidence(df)
         logger.info("Domain detected: %s (confidence: %.2f)", domain, confidence)
+        pipeline_logs.append(
+            {
+                "step": "intent_detection",
+                "agent": "intent_agent",
+                "status": "ok",
+                "details": {"domain": domain, "confidence": round(confidence, 2)},
+            }
+        )
 
         # Step 2: research domain knowledge
+        from_cache = domain in self.agents["research"]._cache
         knowledge = self.agents["research"].research(domain, list(df.columns))
-        knowledge_source = "cache" if domain in self.agents["research"]._cache else "llm"
+        knowledge_source = "cache" if from_cache else "llm"
+        pipeline_logs.append(
+            {
+                "step": "domain_research",
+                "agent": "research_agent",
+                "status": "ok",
+                "details": {
+                    "knowledge_source": knowledge_source,
+                    "kpis": len(knowledge.get("kpis", [])),
+                    "analysis_priorities": len(knowledge.get("analysis_priorities", [])),
+                },
+            }
+        )
 
-        # Step 3: run analysis enriched with domain context
-        results = self.agents["analysis"].run_all_with_context(knowledge)
+        # Step 3: run analysis directly on uploaded dataset, then enrich context
+        results = self.agents["analysis"].run_uploaded_dataset_analysis(df, user_preferences=prefs)
+        results["domain_kpis"] = knowledge.get("kpis", [])
+        results["domain_thresholds"] = knowledge.get("anomaly_thresholds", {})
+        results["analysis_priorities"] = knowledge.get("analysis_priorities", [])
+        pipeline_logs.append(
+            {
+                "step": "analysis",
+                "agent": "analysis_agent",
+                "status": "ok",
+                "details": {
+                    "overview": results.get("descriptive", {}).get("overview", {}),
+                    "missing_strategy": results.get("descriptive", {}).get("data_prep", {}).get("missing_strategy"),
+                },
+            }
+        )
 
         # Step 4: generate LLM insights
         vocab = knowledge.get("vocabulary", [])
         insights = self.agents["insight"].generate_with_llm(results, vocab, domain)
+        pipeline_logs.append(
+            {
+                "step": "insight_generation",
+                "agent": "insight_agent",
+                "status": "ok",
+                "details": {"insight_count": len(insights)},
+            }
+        )
+
+        executive_storyline = self.agents["insight"].build_executive_storyline(results, insights, domain)
+        pipeline_logs.append(
+            {
+                "step": "storyline",
+                "agent": "insight_agent",
+                "status": "ok",
+                "details": {"storyline_items": len(executive_storyline)},
+            }
+        )
 
         # Step 5: save insights
         self._write_insights(insights)
@@ -92,6 +170,9 @@ class OrchestratorAgent:
             "analysis_priorities": knowledge.get("analysis_priorities", []),
             "analysis": results,
             "insights": insights,
+            "executive_storyline": executive_storyline,
+            "pipeline_logs": pipeline_logs,
+            "applied_user_preferences": prefs,
         }
 
     def watch_sensor_anomaly(self) -> list[dict]:

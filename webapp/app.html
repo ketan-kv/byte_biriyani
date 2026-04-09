@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AMDAIS | Analysis Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <header class="topbar shell">
+    <a class="brand" href="/">AMDAIS</a>
+    <nav class="nav-links">
+      <a href="/app">Workspace</a>
+      <a href="/about">How It Works</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Autonomous Analysis Workspace</p>
+      <h1>Upload or query data, then guide the agents</h1>
+      <p class="hero-copy">AMDAIS analyzes full datasets and returns evidence-backed insights, while exposing trace logs and editable controls.</p>
+    </section>
+
+    <section class="panel">
+      <h2>1. Choose input source</h2>
+      <div class="source-tabs">
+        <button id="tabFile" class="tab active" type="button">File Upload</button>
+        <button id="tabDb" class="tab" type="button">Database Query</button>
+      </div>
+
+      <div id="fileSource" class="source-pane">
+        <div class="upload-row">
+          <input id="datasetFile" type="file" accept=".csv,.xlsx,.xls" />
+          <button id="runButton" class="primary" type="button">Run Autonomous Analysis</button>
+        </div>
+      </div>
+
+      <div id="dbSource" class="source-pane hidden">
+        <div class="form-grid">
+          <label>
+            Database URL
+            <input id="dbUrl" type="text" placeholder="sqlite:///data/structured/mineral_db.sqlite" />
+          </label>
+          <label>
+            Table Name (optional)
+            <input id="dbTable" type="text" placeholder="production_logs" />
+          </label>
+          <label class="span-2">
+            SQL Query (optional)
+            <textarea id="dbQuery" rows="4" placeholder="SELECT * FROM production_logs"></textarea>
+          </label>
+          <label>
+            Row Limit
+            <input id="dbLimit" type="number" min="100" max="1000000" value="200000" />
+          </label>
+          <div class="inline-help">Provide either table name or SQL query.</div>
+        </div>
+        <button id="runDbButton" class="primary" type="button">Run DB Analysis</button>
+      </div>
+
+      <h3 style="margin-top: 1rem;">Agent control</h3>
+      <div class="control-grid">
+        <label>
+          Missing-value strategy
+          <select id="missingStrategy">
+            <option value="none">none</option>
+            <option value="mean">mean</option>
+            <option value="median">median</option>
+            <option value="zero">zero</option>
+            <option value="drop">drop rows with missing numeric fields</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="runStatus" class="status idle">Waiting for input</div>
+    </section>
+
+    <section id="resultArea" class="hidden">
+      <section class="panel summary-grid">
+        <article><h3>Detected Domain</h3><p id="domainValue" class="metric"></p></article>
+        <article><h3>Confidence</h3><p id="confidenceValue" class="metric"></p></article>
+        <article><h3>Rows Processed</h3><p id="rowsValue" class="metric"></p></article>
+        <article><h3>Insights Generated</h3><p id="insightCountValue" class="metric"></p></article>
+      </section>
+
+      <section class="panel">
+        <h2>2. Executive Storyline</h2>
+        <div id="storyList" class="story-cards"></div>
+      </section>
+
+      <section class="panel">
+        <h2>3. Agent Trace Logs</h2>
+        <div id="pipelineLogs" class="log-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>4. AI Insights</h2>
+        <div id="insightCards" class="insight-cards"></div>
+      </section>
+
+      <section class="panel charts">
+        <h2>5. Interactive Story Charts</h2>
+        <div id="dynamicCharts" class="chart-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

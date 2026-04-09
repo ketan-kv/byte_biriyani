@@ -1,12 +1,39 @@
 [
   {
-    "id": "8c219c0d-58eb-4534-a011-ca991d88e3f0",
+    "id": "3b46047e-d2cc-4b52-817b-0a5893026743",
+    "severity": "CRITICAL",
+    "category": "Data Quality",
+    "title": "High Missingness in Fielder Data",
+    "explanation": "The fielder data shows a high level of missingness (96.4%). This could be due to incorrect data collection or incomplete data entry.",
+    "recommendation": "Verify the accuracy of the fielder data by cross-checking with other sources and ensure that it is properly cleaned and preprocessed before analysis.",
+    "confidence": 0.9,
+    "data_refs": [
+      "fielder"
+    ]
+  },
+  {
+    "id": "a6cd083a-6bb6-4aba-b60e-4908a10fe2b5",
+    "severity": "WARNING",
+    "category": "Data Exploration",
+    "title": "Outlier-Heavy Metric total_runs",
+    "explanation": "The total_runs metric shows a high level of outliers (17.1%). This could indicate that the data is not normally distributed or that there are unusual patterns in the data.",
+    "recommendation": "Visualize the distribution of total_runs to better understand the pattern and consider using robust statistical methods to analyze the data.",
+    "confidence": 0.8,
+    "data_refs": [
+      "total_runs"
+    ]
+  },
+  {
+    "id": "cec6a987-dc69-4929-b663-fd5119b638f2",
     "severity": "INFO",
-    "category": "risk_signal",
-    "title": "Healthcare risk signal",
-    "explanation": "Dataset quality is stable; prioritize business drill-down by segment.",
-    "recommendation": "Track this signal in a weekly analytics review and tie it to business outcomes.",
-    "confidence": 0.68,
-    "data_refs": []
+    "category": "Correlation Analysis",
+    "title": "Strong Relationship between batsman_runs and total_runs",
+    "explanation": "The correlation analysis shows a strong positive relationship (corr=0.98) between batsman_runs and total_runs.",
+    "recommendation": "Consider using this relationship to improve predictive models or identify patterns in the data.",
+    "confidence": 0.7,
+    "data_refs": [
+      "batsman_runs",
+      "total_runs"
+    ]
   }
 ]

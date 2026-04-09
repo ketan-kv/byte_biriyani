@@ -69,3 +69,25 @@ def test_analysis_agent_run_all(tmp_path: Path) -> None:
     agent = AnalysisAgent(str(db_path), str(parquet_path))
     out = agent.run_all()
     assert set(out.keys()) == {"descriptive", "diagnostic", "predictive"}
+
+
+def test_uploaded_dataset_analysis_coerces_text_numbers_and_dates(tmp_path: Path) -> None:
+    db_path = tmp_path / "mineral_db.sqlite"
+    parquet_path = tmp_path / "sensor_data.parquet"
+    agent = AnalysisAgent(str(db_path), str(parquet_path))
+
+    df = pd.DataFrame(
+        {
+            "Order Date": ["01/01/2024", "01/02/2024", "01/03/2024", "01/04/2024"],
+            "Sales Amount": ["$1,200.50", "$900.00", "$1,450.25", "$1,050.10"],
+            "Order ID": ["A-1001", "A-1002", "A-1003", "A-1004"],
+            "Region": ["North", "South", "North", "West"],
+        }
+    )
+
+    out = agent.run_uploaded_dataset_analysis(df)
+    descriptive = out["descriptive"]
+
+    assert descriptive["trend_profile"]["available"] is True
+    assert descriptive["distribution_profile"]["available"] is True
+    assert descriptive["distribution_profile"]["metric_column"] == "sales_amount"

@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from agents.decision_copilot import DecisionCopilot
 from api.routes.analytics import router as analytics_router
+from api.routes.chat import router as chat_router
 from api.routes.domain_pipeline import router as domain_pipeline_router
 from api.routes.ingest import router as ingest_router
 from api.routes.insights import router as insights_router
@@ -17,6 +19,7 @@ def create_app(orchestrator, config: dict) -> FastAPI:
     app = FastAPI(title="AMDAIS API", version="0.1.0")
     app.state.orchestrator = orchestrator
     app.state.config = config
+    app.state.decision_copilot = DecisionCopilot()
 
     project_root = Path(__file__).resolve().parents[1]
     web_dir = project_root / "webapp"
@@ -60,4 +63,5 @@ def create_app(orchestrator, config: dict) -> FastAPI:
     app.include_router(insights_router)
     app.include_router(analytics_router)
     app.include_router(domain_pipeline_router)
+    app.include_router(chat_router)
     return app

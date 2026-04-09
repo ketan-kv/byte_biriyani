@@ -12,7 +12,7 @@ from analytics.insight_fuser import fuse_signals
 
 load_dotenv()
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:latest")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3:latest")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
 

@@ -70,26 +70,8 @@ class OrchestratorAgent:
         prefs = user_preferences or {}
         pipeline_logs: list[dict] = []
 
-        pipeline_logs.append(
-            {
-                "step": "input",
-                "agent": "orchestrator",
-                "status": "ok",
-                "details": {
-                    "rows": int(df.shape[0]),
-                    "columns": int(df.shape[1]),
-                    "user_preferences": prefs,
-                },
-                "editable_controls": [
-                    {
-                        "name": "missing_strategy",
-                        "type": "select",
-                        "options": ["none", "mean", "median", "zero", "drop"],
-                        "current": str(prefs.get("missing_strategy", "none")),
-                    }
-                ],
-            }
-        )
+        
+        
 
         # Step 1: detect domain
         domain, confidence = self.agents["intent"].detect_with_confidence(df)

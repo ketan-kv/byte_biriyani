@@ -16,6 +16,117 @@ class AnalysisAgent:
         self.sensor_parquet_path = Path(sensor_parquet_path)
         self.anomaly_flag: dict | None = None
 
+    @staticmethod
+    def _normalize_text_series(series: pd.Series) -> pd.Series:
+        cleaned = series.astype(str).str.strip()
+        missing_tokens = {"", "nan", "none", "null", "na", "n/a", "nat"}
+        lowered = cleaned.str.lower()
+        cleaned = cleaned.mask(lowered.isin(missing_tokens), pd.NA)
+        return cleaned
+
+    @classmethod
+    def _coerce_numeric_object_columns(cls, frame: pd.DataFrame) -> pd.DataFrame:
+        out = frame.copy()
+        object_cols = out.select_dtypes(include="object").columns.tolist()
+        for col in object_cols:
+            base = cls._normalize_text_series(out[col])
+            sample = base.dropna()
+            if sample.empty:
+                out[col] = base
+                continue
+
+            stripped = (
+                base.astype("string")
+                .str.replace(r"[\$£€₹,]", "", regex=True)
+                .str.replace(r"\(([^\)]+)\)", r"-\1", regex=True)
+                .str.replace("%", "", regex=False)
+                .str.replace(r"\s+", "", regex=True)
+            )
+            numeric = pd.to_numeric(stripped, errors="coerce")
+            parse_ratio = float(numeric.notna().mean())
+            enough_points = int(numeric.notna().sum()) >= (3 if len(out) >= 3 else 1)
+            if parse_ratio >= 0.85 and enough_points:
+                if float(sample.str.contains("%", regex=False).mean()) >= 0.5:
+                    numeric = numeric / 100.0
+                out[col] = numeric
+            else:
+                out[col] = base
+        return out
+
+    @staticmethod
+    def _coerce_datetime_columns(frame: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+        out = frame.copy()
+        datetime_cols: list[str] = []
+
+        for col in out.columns:
+            if pd.api.types.is_datetime64_any_dtype(out[col]):
+                datetime_cols.append(col)
+                continue
+            if out[col].dtype != "object" and str(out[col].dtype) != "string":
+                continue
+
+            sample = out[col].dropna().astype(str).head(300)
+            if sample.empty:
+                continue
+
+            parsed_default = pd.to_datetime(sample, errors="coerce", utc=True, format="mixed")
+            parsed_dayfirst = pd.to_datetime(sample, errors="coerce", utc=True, dayfirst=True, format="mixed")
+            default_ratio = float(parsed_default.notna().mean())
+            dayfirst_ratio = float(parsed_dayfirst.notna().mean())
+
+            use_dayfirst = dayfirst_ratio > default_ratio
+            best_ratio = max(default_ratio, dayfirst_ratio)
+            if best_ratio < 0.75:
+                continue
+
+            parsed_full = pd.to_datetime(
+                out[col],
+                errors="coerce",
+                utc=True,
+                dayfirst=use_dayfirst,
+                format="mixed",
+            )
+            if float(parsed_full.notna().mean()) >= 0.7:
+                out[col] = parsed_full
+                datetime_cols.append(col)
+
+        return out, datetime_cols
+
+    @staticmethod
+    def _is_identifier_like(column_name: str, series: pd.Series) -> bool:
+        name = column_name.lower()
+        id_tokens = (
+            "id",
+            "code",
+            "sku",
+            "zip",
+            "postal",
+            "phone",
+            "mobile",
+            "invoice",
+            "order_no",
+            "customer_no",
+        )
+        if any(token in name for token in id_tokens):
+            return True
+
+        s = series.dropna()
+        if len(s) < 40:
+            return False
+
+        unique_ratio = float(s.nunique()) / float(len(s))
+        if unique_ratio < 0.98:
+            return False
+
+        as_num = pd.to_numeric(s, errors="coerce")
+        numeric_ratio = float(as_num.notna().mean())
+        if numeric_ratio >= 0.9:
+            fractional_ratio = float(((as_num.dropna() % 1).abs() > 1e-9).mean()) if not as_num.dropna().empty else 0.0
+            return fractional_ratio < 0.05
+
+        text_ratio = float(s.astype(str).str.contains(r"[A-Za-z]", regex=True).mean())
+        return text_ratio > 0.3
+
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -38,22 +149,8 @@ class AnalysisAgent:
         frame = df.copy()
         frame.columns = [str(c).strip().lower().replace(" ", "_") for c in frame.columns]
 
-        datetime_cols: list[str] = []
-        for col in frame.columns:
-            if pd.api.types.is_datetime64_any_dtype(frame[col]):
-                datetime_cols.append(col)
-                continue
-            if frame[col].dtype == "object":
-                sample = frame[col].dropna().astype(str).head(200)
-                if sample.empty:
-                    continue
-                looks_like_date = sample.str.contains(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", regex=True).mean()
-                if float(looks_like_date) < 0.6:
-                    continue
-                parsed = pd.to_datetime(frame[col], errors="coerce", utc=True, format="mixed")
-                if float(parsed.notna().mean()) >= 0.8:
-                    frame[col] = parsed
-                    datetime_cols.append(col)
+        frame = self._coerce_numeric_object_columns(frame)
+        frame, datetime_cols = self._coerce_datetime_columns(frame)
 
         numeric_cols = frame.select_dtypes(include="number").columns.tolist()
         categorical_cols = [
@@ -101,7 +198,13 @@ class AnalysisAgent:
 
         metric_col: str | None = None
         if numeric_profile:
-            metric_col = max(numeric_profile, key=lambda x: x.get("std", 0.0)).get("column")
+            candidates = [
+                p
+                for p in numeric_profile
+                if not self._is_identifier_like(p["column"], frame[p["column"]])
+            ]
+            pool = candidates or numeric_profile
+            metric_col = max(pool, key=lambda x: x.get("std", 0.0)).get("column")
 
         categorical_profile: list[dict] = []
         for col in categorical_cols[:20]:
@@ -253,6 +356,8 @@ class AnalysisAgent:
             candidate_col = None
             best_score = -1.0
             for col in categorical_cols:
+                if self._is_identifier_like(col, frame[col]):
+                    continue
                 filled = frame[col].notna().mean()
                 uniq = frame[col].nunique(dropna=True)
                 if uniq < 2 or uniq > 80:

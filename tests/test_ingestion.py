@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from api.routes.domain_pipeline import _read_uploaded_dataframe
 from pipelines.ingestion.csv_parser import parse_production_csv, parse_sensor_csv
 from pipelines.ingestion.ingestion_router import detect_file_type
 from pipelines.ingestion.log_parser import parse_log
@@ -41,3 +42,14 @@ def test_parse_log_extracts_fields(tmp_path: Path) -> None:
     sample.write_text("Date: 2024-03-15\nEquipment: CRUSHER-01\n", encoding="utf-8")
     payload = parse_log(sample)
     assert payload["fields"]["date"] == "2024-03-15"
+
+
+def test_read_uploaded_dataframe_handles_cp1252_csv() -> None:
+    csv_text = "product,region,notes\nBag,UK,Price £12\n"
+    payload = csv_text.encode("cp1252")
+
+    df = _read_uploaded_dataframe(payload, ".csv")
+
+    assert len(df) == 1
+    assert df.loc[0, "product"] == "Bag"
+    assert "£" in str(df.loc[0, "notes"])

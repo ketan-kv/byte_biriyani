@@ -108,6 +108,19 @@
         <h2>5. Interactive Story Charts</h2>
         <div id="dynamicCharts" class="chart-grid"></div>
       </section>
+
+      <section class="panel">
+        <h2>6. AMDAIS Assistant</h2>
+        <p class="muted">Ask about evidence, request custom charts, or run what-if simulations.</p>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-composer">
+          <textarea id="chatInput" rows="3" placeholder="Ask: top 5 risky regions, show sales trend, prove it, what if price drops by 10%..."></textarea>
+          <button id="chatSendButton" class="primary" type="button">Send</button>
+        </div>
+        <div id="chatStatus" class="status idle">Run an analysis first to activate chat context</div>
+        <div id="chatChart" class="chart hidden"></div>
+        <div id="chatActions" class="chat-actions hidden"></div>
+      </section>
     </section>
   </main>
 

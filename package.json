@@ -1,0 +1,19 @@
+{
+  "name": "byte_biriyani-main",
+  "version": "1.0.0",
+  "description": "Autonomous Multi-Domain Analytics and Insight System.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.7"
+  }
+}

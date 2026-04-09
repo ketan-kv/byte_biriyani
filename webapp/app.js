@@ -18,7 +18,28 @@ const storyList = document.getElementById("storyList");
 const insightCards = document.getElementById("insightCards");
 const pipelineLogs = document.getElementById("pipelineLogs");
 const dynamicCharts = document.getElementById("dynamicCharts");
+const chatMessages = document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+const chatSendButton = document.getElementById("chatSendButton");
+const chatStatus = document.getElementById("chatStatus");
+const chatChart = document.getElementById("chatChart");
+const chatActions = document.getElementById("chatActions");
+
 let chartIds = [];
+let hasAnalysisContext = false;
+
+function getOrCreateChatSessionId() {
+  const key = "amdais-chat-session-id";
+  const existing = localStorage.getItem(key);
+  if (existing) {
+    return existing;
+  }
+  const generated = window.crypto?.randomUUID ? window.crypto.randomUUID() : `session-${Date.now()}`;
+  localStorage.setItem(key, generated);
+  return generated;
+}
+
+const chatSessionId = getOrCreateChatSessionId();
 
 function setStatus(type, text) {
   runStatus.className = `status ${type}`;
@@ -46,6 +67,160 @@ function formatLogValue(value) {
     return `${Object.keys(value).length} field(s)`;
   }
   return String(value);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function setChatStatus(type, text) {
+  if (!chatStatus) {
+    return;
+  }
+  chatStatus.className = `status ${type}`;
+  chatStatus.textContent = text;
+}
+
+function appendChatMessage(role, text, meta = "") {
+  if (!chatMessages) {
+    return;
+  }
+  const item = document.createElement("article");
+  item.className = `chat-bubble ${role}`;
+  item.innerHTML = `
+    <div class="chat-head">${role === "user" ? "You" : "AMDAIS Assistant"}${meta ? ` | ${escapeHtml(meta)}` : ""}</div>
+    <p>${escapeHtml(text)}</p>
+  `;
+  chatMessages.appendChild(item);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function renderChatData(data) {
+  if (!chatMessages || !data || typeof data !== "object") {
+    return;
+  }
+  const columns = Array.isArray(data.columns) ? data.columns : null;
+  const rows = Array.isArray(data.rows) ? data.rows : null;
+
+  if (columns && rows) {
+    const preview = rows.slice(0, 8);
+    const table = document.createElement("div");
+    table.className = "chat-data";
+    table.innerHTML = `
+      <div class="chat-data-title">Query result preview</div>
+      <div class="chat-table-wrap">
+        <table>
+          <thead><tr>${columns.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>
+          <tbody>
+            ${preview
+              .map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(row?.[c] ?? "-")}</td>`).join("")}</tr>`)
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+    chatMessages.appendChild(table);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return;
+  }
+
+  const block = document.createElement("pre");
+  block.className = "chat-json";
+  block.textContent = JSON.stringify(data, null, 2);
+  chatMessages.appendChild(block);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function renderChatActions(actions) {
+  if (!chatActions) {
+    return;
+  }
+  if (!Array.isArray(actions) || !actions.length) {
+    chatActions.classList.add("hidden");
+    chatActions.innerHTML = "";
+    return;
+  }
+
+  chatActions.classList.remove("hidden");
+  chatActions.innerHTML = actions
+    .map(
+      (action, idx) => `
+        <article class="chat-action-card">
+          <h4>Action ${idx + 1}</h4>
+          <p><strong>What:</strong> ${escapeHtml(action.description || "")}</p>
+          <p><strong>Why:</strong> ${escapeHtml(action.reasoning || "")}</p>
+          <p><strong>Impact:</strong> ${escapeHtml(action.expected_impact || "")}</p>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderChatChart(chartPayload) {
+  if (!chatChart) {
+    return;
+  }
+  if (!chartPayload || !Array.isArray(chartPayload.data)) {
+    chatChart.classList.add("hidden");
+    chatChart.innerHTML = "";
+    return;
+  }
+
+  chatChart.classList.remove("hidden");
+  safePlot(
+    chatChart,
+    chartPayload.data,
+    chartPayload.layout || {},
+    {
+      responsive: true,
+      displaylogo: false,
+    },
+    "Could not render this chat chart for the current dataset."
+  );
+}
+
+async function sendChatMessage() {
+  const message = String(chatInput?.value || "").trim();
+  if (!message) {
+    return;
+  }
+  if (!hasAnalysisContext) {
+    setChatStatus("error", "Run an analysis first so the copilot has dataset context.");
+    return;
+  }
+
+  appendChatMessage("user", message);
+  chatInput.value = "";
+  chatSendButton.disabled = true;
+  setChatStatus("loading", "AMDAIS Assistant is thinking...");
+
+  try {
+    const response = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, session_id: chatSessionId }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.detail || "Chat request failed");
+    }
+
+    appendChatMessage("assistant", payload.message || "No response", payload.intent || "");
+    renderChatData(payload.data || {});
+    renderChatActions(payload.actions || []);
+    renderChatChart(payload.chart || null);
+    setChatStatus("ok", "AMDAIS Assistant response ready");
+  } catch (error) {
+    appendChatMessage("assistant", `I could not complete that request: ${error.message}`);
+    setChatStatus("error", `Chat failed: ${error.message}`);
+  } finally {
+    chatSendButton.disabled = false;
+  }
 }
 
 function getUserPreferences() {
@@ -133,8 +308,54 @@ function renderInsights(insights) {
     .join("");
 }
 
+function toFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function sanitizeXY(xValues, yValues, maxPoints = 2500) {
+  const xs = Array.isArray(xValues) ? xValues : [];
+  const ys = Array.isArray(yValues) ? yValues : [];
+  const len = Math.min(xs.length, ys.length);
+  const cleanX = [];
+  const cleanY = [];
+
+  for (let i = 0; i < len; i += 1) {
+    const x = xs[i];
+    const y = toFiniteNumber(ys[i]);
+    if (y === null || x === null || x === undefined || x === "" || x === "NaT") {
+      continue;
+    }
+    cleanX.push(x);
+    cleanY.push(y);
+  }
+
+  if (cleanX.length <= maxPoints) {
+    return { x: cleanX, y: cleanY };
+  }
+
+  const step = Math.ceil(cleanX.length / maxPoints);
+  return {
+    x: cleanX.filter((_, idx) => idx % step === 0),
+    y: cleanY.filter((_, idx) => idx % step === 0),
+  };
+}
+
+function safePlot(targetId, traces, layout, config, fallbackText) {
+  try {
+    Plotly.newPlot(targetId, traces, layout, config);
+  } catch (error) {
+    const node = typeof targetId === "string" ? document.getElementById(targetId) : targetId;
+    if (node) {
+      node.innerHTML = `<p class="muted">${escapeHtml(fallbackText || "Chart rendering failed for this dataset.")}</p>`;
+    }
+    // eslint-disable-next-line no-console
+    console.error("Plot rendering failed", error);
+  }
+}
+
 function drawTextChart(targetId, title, text) {
-  Plotly.newPlot(
+  safePlot(
     targetId,
     [{ type: "scatter", x: [0], y: [0], mode: "text", text: [text] }],
     {
@@ -145,7 +366,8 @@ function drawTextChart(targetId, title, text) {
       xaxis: { visible: false },
       yaxis: { visible: false },
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    text
   );
 }
 
@@ -160,31 +382,39 @@ function drawTrendChart(targetId, descriptive) {
   const x = series.map((r) => r.period);
   const yCount = series.map((r) => Number(r.records || 0));
   const yMetric = series.map((r) => (r.metric_mean === null || r.metric_mean === undefined ? null : Number(r.metric_mean)));
-  const hasMetric = yMetric.some((v) => v !== null);
+  const countSeries = sanitizeXY(x, yCount, 1500);
+  const metricSeries = sanitizeXY(x, yMetric, 1500);
+  const hasMetric = metricSeries.x.length > 0;
 
-  const traces = [
-    {
+  if (!countSeries.x.length && !metricSeries.x.length) {
+    drawTextChart(targetId, "Trend over time", "No valid trend points after data cleanup");
+    return;
+  }
+
+  const traces = [];
+  if (countSeries.x.length) {
+    traces.push({
       type: "scatter",
       mode: "lines+markers",
-      x,
-      y: yCount,
+      x: countSeries.x,
+      y: countSeries.y,
       name: "record count",
       line: { color: "#0f9272", width: 2 },
-    },
-  ];
+    });
+  }
   if (hasMetric) {
     traces.push({
       type: "scatter",
       mode: "lines",
-      x,
-      y: yMetric,
+      x: metricSeries.x,
+      y: metricSeries.y,
       name: profile.metric_column || "metric mean",
       yaxis: "y2",
       line: { color: "#2456a6", width: 2, dash: "dot" },
     });
   }
 
-  Plotly.newPlot(
+  safePlot(
     targetId,
     traces,
     {
@@ -196,19 +426,20 @@ function drawTrendChart(targetId, descriptive) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Trend chart could not be rendered for this dataset."
   );
 }
 
 function drawDistributionChart(targetId, descriptive) {
   const profile = descriptive?.distribution_profile || {};
-  const values = profile.values_sample || [];
+  const values = (profile.values_sample || []).map((v) => toFiniteNumber(v)).filter((v) => v !== null);
   if (!profile.available || !values.length) {
     drawTextChart(targetId, "Distribution", profile.reason || "No distribution data available");
     return;
   }
 
-  Plotly.newPlot(
+  safePlot(
     targetId,
     [
       {
@@ -228,7 +459,7 @@ function drawDistributionChart(targetId, descriptive) {
       plot_bgcolor: "#fbfefb",
       annotations: profile.summary && profile.summary.median !== undefined ? [
         {
-          x: Number(profile.summary.median),
+          x: toFiniteNumber(profile.summary.median),
           y: 1,
           xref: "x",
           yref: "paper",
@@ -238,7 +469,8 @@ function drawDistributionChart(targetId, descriptive) {
         },
       ] : [],
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Distribution chart could not be rendered for this dataset."
   );
 }
 
@@ -250,11 +482,24 @@ function drawParetoChart(targetId, descriptive) {
     return;
   }
 
-  const x = rows.map((r) => r.segment);
-  const y = rows.map((r) => Number(r.value || 0));
-  const yCum = rows.map((r) => Number(r.cumulative_pct || 0) * 100);
+  const clean = rows
+    .map((r) => ({
+      segment: r.segment,
+      value: toFiniteNumber(r.value),
+      cumulative: toFiniteNumber(r.cumulative_pct),
+    }))
+    .filter((r) => r.segment !== null && r.segment !== undefined && r.segment !== "" && r.value !== null && r.cumulative !== null);
 
-  Plotly.newPlot(
+  if (!clean.length) {
+    drawTextChart(targetId, "Segment Pareto", "No valid pareto points after data cleanup");
+    return;
+  }
+
+  const x = clean.map((r) => r.segment);
+  const y = clean.map((r) => r.value);
+  const yCum = clean.map((r) => r.cumulative * 100);
+
+  safePlot(
     targetId,
     [
       { type: "bar", x, y, name: "segment value", marker: { color: "#8a59c2" } },
@@ -270,7 +515,8 @@ function drawParetoChart(targetId, descriptive) {
       plot_bgcolor: "#fbfefb",
       annotations: [{ x: x[Math.min(2, x.length - 1)], y: 80, yref: "y2", text: "80% focus zone", showarrow: false }],
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Pareto chart could not be rendered for this dataset."
   );
 }
 
@@ -282,14 +528,24 @@ function drawDriverScatterChart(targetId, diagnostic) {
     return;
   }
 
-  Plotly.newPlot(
+  const pairs = sanitizeXY(
+    points.map((p) => p.x),
+    points.map((p) => p.y),
+    2500
+  );
+  if (!pairs.x.length) {
+    drawTextChart(targetId, "Driver relationship", "No valid scatter points after data cleanup");
+    return;
+  }
+
+  safePlot(
     targetId,
     [
       {
         type: "scattergl",
         mode: "markers",
-        x: points.map((p) => p.x),
-        y: points.map((p) => p.y),
+        x: pairs.x,
+        y: pairs.y,
         marker: { color: "#0f9272", size: 5, opacity: 0.45 },
       },
     ],
@@ -301,7 +557,8 @@ function drawDriverScatterChart(targetId, diagnostic) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Driver scatter chart could not be rendered for this dataset."
   );
 }
 
@@ -326,9 +583,18 @@ function drawQualityChart(targetId, descriptive, diagnostic) {
     "#2456a6",
   ];
 
-  Plotly.newPlot(
+  const rows = categories
+    .map((label, idx) => ({ label, value: toFiniteNumber(values[idx]), color: colors[idx] }))
+    .filter((r) => r.label && r.value !== null);
+
+  if (!rows.length) {
+    drawTextChart(targetId, "Data quality pressure map", "No valid quality data available");
+    return;
+  }
+
+  safePlot(
     targetId,
-    [{ type: "bar", x: categories, y: values, marker: { color: colors } }],
+    [{ type: "bar", x: rows.map((r) => r.label), y: rows.map((r) => r.value), marker: { color: rows.map((r) => r.color) } }],
     {
       title: "Data quality pressure map",
       margin: { t: 50, r: 10, l: 45, b: 110 },
@@ -337,7 +603,8 @@ function drawQualityChart(targetId, descriptive, diagnostic) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Quality chart could not be rendered for this dataset."
   );
 }
 
@@ -350,9 +617,18 @@ function drawCorrelationHeatmapChart(targetId, diagnostic) {
     return;
   }
 
-  Plotly.newPlot(
+  const cleanMatrix = matrix
+    .filter((row) => Array.isArray(row) && row.length === cols.length)
+    .map((row) => row.map((v) => toFiniteNumber(v)));
+  const hasValue = cleanMatrix.some((row) => row.some((v) => v !== null));
+  if (!hasValue) {
+    drawTextChart(targetId, "Correlation map", "Correlation matrix has no valid values");
+    return;
+  }
+
+  safePlot(
     targetId,
-    [{ type: "heatmap", z: matrix, x: cols, y: cols, colorscale: "RdBu", zmin: -1, zmax: 1 }],
+    [{ type: "heatmap", z: cleanMatrix, x: cols, y: cols, colorscale: "RdBu", zmin: -1, zmax: 1 }],
     {
       title: "Correlation structure",
       margin: { t: 50, r: 10, l: 70, b: 100 },
@@ -361,7 +637,8 @@ function drawCorrelationHeatmapChart(targetId, diagnostic) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Correlation chart could not be rendered for this dataset."
   );
 }
 
@@ -373,14 +650,22 @@ function drawCategoricalCompositionChart(targetId, descriptive) {
   }
 
   const selected = profile[0];
-  const rows = selected.top_values || [];
-  Plotly.newPlot(
+  const rows = (selected.top_values || [])
+    .map((r) => ({ value: r.value, count: toFiniteNumber(r.count) }))
+    .filter((r) => r.value !== undefined && r.value !== null && r.value !== "" && r.count !== null);
+
+  if (!rows.length) {
+    drawTextChart(targetId, "Categorical composition", "No valid category counts available");
+    return;
+  }
+
+  safePlot(
     targetId,
     [
       {
         type: "bar",
         x: rows.map((r) => r.value),
-        y: rows.map((r) => Number(r.count || 0)),
+        y: rows.map((r) => r.count),
         marker: { color: "#2a6f9b" },
       },
     ],
@@ -392,7 +677,8 @@ function drawCategoricalCompositionChart(targetId, descriptive) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Category composition chart could not be rendered for this dataset."
   );
 }
 
@@ -403,9 +689,18 @@ function drawOutlierChart(targetId, diagnostic) {
     return;
   }
 
-  Plotly.newPlot(
+  const rows = data
+    .map((d) => ({ column: d.column, value: toFiniteNumber(d.outlier_pct) }))
+    .filter((d) => d.column && d.value !== null);
+
+  if (!rows.length) {
+    drawTextChart(targetId, "Outlier pressure", "No valid outlier values available");
+    return;
+  }
+
+  safePlot(
     targetId,
-    [{ type: "bar", x: data.map((d) => d.column), y: data.map((d) => Number(d.outlier_pct || 0) * 100), marker: { color: "#a5302b" } }],
+    [{ type: "bar", x: rows.map((d) => d.column), y: rows.map((d) => d.value * 100), marker: { color: "#a5302b" } }],
     {
       title: "Outlier pressure by metric",
       margin: { t: 50, r: 10, l: 45, b: 90 },
@@ -414,7 +709,8 @@ function drawOutlierChart(targetId, diagnostic) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Outlier chart could not be rendered for this dataset."
   );
 }
 
@@ -425,9 +721,18 @@ function drawMissingnessChart(targetId, diagnostic) {
     return;
   }
 
-  Plotly.newPlot(
+  const rows = data
+    .map((d) => ({ column: d.column, value: toFiniteNumber(d.missing_pct) }))
+    .filter((d) => d.column && d.value !== null);
+
+  if (!rows.length) {
+    drawTextChart(targetId, "Missingness", "No valid missingness values available");
+    return;
+  }
+
+  safePlot(
     targetId,
-    [{ type: "bar", x: data.map((d) => d.column), y: data.map((d) => Number(d.missing_pct || 0) * 100), marker: { color: "#c57618" } }],
+    [{ type: "bar", x: rows.map((d) => d.column), y: rows.map((d) => d.value * 100), marker: { color: "#c57618" } }],
     {
       title: "Missingness by column",
       margin: { t: 50, r: 10, l: 45, b: 90 },
@@ -436,7 +741,8 @@ function drawMissingnessChart(targetId, diagnostic) {
       paper_bgcolor: "#fbfefb",
       plot_bgcolor: "#fbfefb",
     },
-    { responsive: true, displaylogo: false }
+    { responsive: true, displaylogo: false },
+    "Missingness chart could not be rendered for this dataset."
   );
 }
 
@@ -575,7 +881,13 @@ function renderDynamicCharts(analysis) {
       "beforeend",
       `<div class=\"chart-wrap\"><h3>${spec.title}</h3>${subtitle}<div id=\"${id}\" class=\"chart\"></div></div>`
     );
-    spec.render(id);
+    try {
+      spec.render(id);
+    } catch (error) {
+      drawTextChart(id, spec.title, "Chart rendering failed for this view");
+      // eslint-disable-next-line no-console
+      console.error(`Failed rendering chart ${spec.key}`, error);
+    }
   });
 }
 
@@ -589,6 +901,11 @@ function renderAll(payload) {
   renderPipelineLogs(payload.pipeline_logs || []);
   renderInsights(payload.insights || []);
   renderDynamicCharts(payload.analysis || {});
+  hasAnalysisContext = true;
+  setChatStatus("ok", "Chat is active. Ask about insights, proof, charts, or simulations.");
+  if (chatMessages && !chatMessages.children.length) {
+    appendChatMessage("assistant", "Analysis context loaded. Ask me what changed, why, or what to do next.");
+  }
 
   resultArea.classList.remove("hidden");
   requestAnimationFrame(() => {
@@ -675,6 +992,13 @@ tabFile?.addEventListener("click", () => activateTab("file"));
 tabDb?.addEventListener("click", () => activateTab("db"));
 runButton?.addEventListener("click", runFileAnalysis);
 runDbButton?.addEventListener("click", runDbAnalysis);
+chatSendButton?.addEventListener("click", sendChatMessage);
+chatInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendChatMessage();
+  }
+});
 
 window.addEventListener("resize", () => {
   chartIds.forEach((id) => {
@@ -683,4 +1007,8 @@ window.addEventListener("resize", () => {
       Plotly.Plots.resize(el);
     }
   });
+
+  if (chatChart && !chatChart.classList.contains("hidden") && chatChart.data) {
+    Plotly.Plots.resize(chatChart);
+  }
 });

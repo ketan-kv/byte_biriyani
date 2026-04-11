@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AMDAIS | Architecture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <header class="topbar shell">
+    <a class="brand" href="/">AMDAIS</a>
+    <nav class="nav-links">
+      <a href="/app">Launch Workspace</a>
+      <a href="/about">How It Works</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">System Blueprint</p>
+      <h1>How AMDAIS thinks like a domain analyst</h1>
+      <p class="hero-copy">The pipeline is fully autonomous but transparent, with editable controls and execution logs.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Pipeline stages</h2>
+      <ol class="story-list">
+        <li>Intent Agent: detects likely domain from full schema and sample values.</li>
+        <li>Research Agent: builds domain KPI priors, thresholds, and vocabulary.</li>
+        <li>Analysis Agent: profiles full dataset and builds descriptive, diagnostic, predictive layers.</li>
+        <li>Insight Agent: produces actionable recommendations and executive storyline.</li>
+        <li>Orchestrator: records logs and returns editable controls for reruns.</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>Editable controls currently exposed</h2>
+      <ul class="story-list">
+        <li>Missing value strategy: none, mean, median, zero, drop.</li>
+        <li>Re-run from frontend with new controls and compare outcomes.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

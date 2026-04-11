@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AMDAIS | Analytics Workspace</title>
+  <meta name="description" content="Autonomous Multi-Domain Analytics — upload any dataset and get AI-powered domain intelligence with a fully customizable pipeline." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" defer></script>
+</head>
+<body>
+
+  <!-- Animated background -->
+  <div class="bg-orbs" aria-hidden="true"></div>
+  <div class="bg-dots" aria-hidden="true"></div>
+
+  <!-- Top navigation -->
+  <header class="topbar">
+    <a class="brand" href="/">AMDAIS</a>
+    <nav class="nav-links">
+      <a href="/app">Workspace</a>
+      <a href="/about">How It Works</a>
+    </nav>
+  </header>
+
+  <!-- Main workspace -->
+  <main class="workspace">
+
+    <!-- Page hero -->
+    <section class="page-hero">
+      <p class="label">Autonomous Multi-Domain Analytics</p>
+      <h1>Upload data, guide the agents</h1>
+      <p>Drop any CSV or Excel file. AMDAIS detects your data domain, runs a full analytics pipeline, and surfaces expert-level insights — with you in control at every stage.</p>
+    </section>
+
+    <!-- Upload zone -->
+    <section id="uploadZone" class="upload-zone" role="button" tabindex="0" aria-label="Click or drag a file to upload">
+      <!-- Default state -->
+      <div class="upload-inner">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+          </svg>
+        </div>
+        <h2>Drop your dataset here</h2>
+        <p>CSV or Excel · Any business domain · AI-powered</p>
+        <button class="btn-primary" id="chooseFileBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Choose File
+        </button>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" aria-label="File upload input" hidden />
+      </div>
+
+      <!-- File chip (visible after selection) -->
+      <div class="file-chip hidden" id="fileChip">
+        <div class="file-chip-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+          </svg>
+        </div>
+        <div class="file-chip-info">
+          <div class="file-chip-name" id="fileChipName">dataset.csv</div>
+          <div class="file-chip-size" id="fileChipSize">—</div>
+        </div>
+        <button class="file-chip-remove" id="fileRemoveBtn" type="button" title="Remove file" aria-label="Remove selected file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Pipeline section -->
+    <section class="pipeline-section">
+      <p class="section-label">Analytics Pipeline — click any stage to configure it</p>
+
+      <!-- Pipeline nodes -->
+      <div class="pipeline-nodes" id="pipelineNodes" role="group" aria-label="Pipeline stages">
+
+        <!-- Detect -->
+        <div class="pipeline-node idle" id="node-detect" data-stage="detect"
+             role="button" tabindex="0" aria-label="Configure detect stage" title="Domain Detection — click to configure">
+          <div class="node-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>
+            </svg>
+            <div class="node-check" aria-hidden="true">✓</div>
+          </div>
+          <span class="node-label">Detect</span>
+          <span class="node-status" id="status-detect">Waiting</span>
+        </div>
+
+        <div class="pipeline-connector" id="conn-detect-structure"></div>
+
+        <!-- Structure -->
+        <div class="pipeline-node idle" id="node-structure" data-stage="structure"
+             role="button" tabindex="0" aria-label="Configure structure stage" title="Data Structuring — click to configure">
+          <div class="node-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+              <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+            <div class="node-check" aria-hidden="true">✓</div>
+          </div>
+          <span class="node-label">Structure</span>
+          <span class="node-status" id="status-structure">Waiting</span>
+        </div>
+
+        <div class="pipeline-connector" id="conn-structure-analyze"></div>
+
+        <!-- Analyze -->
+        <div class="pipeline-node idle" id="node-analyze" data-stage="analyze"
+             role="button" tabindex="0" aria-label="Configure analyze stage" title="Analytics Engine — click to configure">
+          <div class="node-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <div class="node-check" aria-hidden="true">✓</div>
+          </div>
+          <span class="node-label">Analyze</span>
+          <span class="node-status" id="status-analyze">Waiting</span>
+        </div>
+
+        <div class="pipeline-connector" id="conn-analyze-insight"></div>
+
+        <!-- Insight -->
+        <div class="pipeline-node idle" id="node-insight" data-stage="insight"
+             role="button" tabindex="0" aria-label="Configure insight stage" title="Insight Generation — click to configure">
+          <div class="node-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            <div class="node-check" aria-hidden="true">✓</div>
+          </div>
+          <span class="node-label">Insight</span>
+          <span class="node-status" id="status-insight">Waiting</span>
+        </div>
+
+      </div>
+
+      <!-- Stage configuration accordion -->
+      <div class="stage-config-wrapper" id="stageConfigWrapper">
+
+        <!-- DETECT config -->
+        <div class="stage-config hidden" id="config-detect">
+          <div class="config-header">
+            <h3>Detect Stage <span class="badge">Domain Detection</span></h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-field">
+              <label for="cfg-domain-override">Domain Override</label>
+              <select id="cfg-domain-override">
+                <option value="">Auto-detect</option>
+                <option value="mining">Mining</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="ecommerce">E-Commerce</option>
+                <option value="finance">Finance</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="logistics">Logistics</option>
+                <option value="agriculture">Agriculture</option>
+                <option value="energy">Energy</option>
+              </select>
+              <span class="config-hint">Override the auto-detected business domain.</span>
+            </div>
+            <div class="config-field">
+              <label for="cfg-exclude-cols">Exclude Columns</label>
+              <input id="cfg-exclude-cols" type="text" placeholder="id, row_num, internal_key" />
+              <span class="config-hint">Comma-separated column names to exclude.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- STRUCTURE config -->
+        <div class="stage-config hidden" id="config-structure">
+          <div class="config-header">
+            <h3>Structure Stage <span class="badge">Data Preparation</span></h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-field">
+              <label for="cfg-missing-strategy">Missing Value Strategy</label>
+              <select id="cfg-missing-strategy">
+                <option value="none">none — keep as-is</option>
+                <option value="mean">mean — fill with column mean</option>
+                <option value="median">median — fill with median</option>
+                <option value="zero">zero — fill with 0</option>
+                <option value="drop">drop — remove affected rows</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label for="cfg-outlier-handling">Outlier Handling</label>
+              <select id="cfg-outlier-handling">
+                <option value="keep">keep — flag only</option>
+                <option value="flag">flag — annotate results</option>
+                <option value="remove">remove — exclude from analysis</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ANALYZE config -->
+        <div class="stage-config hidden" id="config-analyze">
+          <div class="config-header">
+            <h3>Analyze Stage <span class="badge">Analytics Engine</span></h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-field">
+              <label for="cfg-focus-cols">Focus Columns</label>
+              <input id="cfg-focus-cols" type="text" placeholder="revenue, churn_rate, region" />
+              <span class="config-hint">Prioritize these in correlations and trend analysis.</span>
+            </div>
+            <div class="config-field">
+              <label for="cfg-correlation-depth">Correlation Depth</label>
+              <select id="cfg-correlation-depth">
+                <option value="5">5 pairs</option>
+                <option value="10" selected>10 pairs</option>
+                <option value="15">15 pairs</option>
+                <option value="20">20 pairs (slow)</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label for="cfg-outlier-threshold">Outlier Threshold</label>
+              <select id="cfg-outlier-threshold">
+                <option value="1.5" selected>1.5× IQR — sensitive</option>
+                <option value="2.0">2.0× IQR — moderate</option>
+                <option value="3.0">3.0× IQR — lenient</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- INSIGHT config -->
+        <div class="stage-config hidden" id="config-insight">
+          <div class="config-header">
+            <h3>Insight Stage <span class="badge">AI Insight Generation</span></h3>
+          </div>
+          <div class="config-grid">
+            <div class="config-field">
+              <label for="cfg-min-severity">Minimum Severity</label>
+              <select id="cfg-min-severity">
+                <option value="INFO">INFO — show all</option>
+                <option value="WARNING">WARNING — warnings and above</option>
+                <option value="CRITICAL">CRITICAL — critical only</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label for="cfg-insight-count">Number of Insights</label>
+              <select id="cfg-insight-count">
+                <option value="4">4 insights</option>
+                <option value="6" selected>6 insights</option>
+                <option value="8">8 insights</option>
+                <option value="10">10 insights</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label for="cfg-insight-style">Insight Style</label>
+              <select id="cfg-insight-style">
+                <option value="concise">Concise — brief and direct</option>
+                <option value="detailed" selected>Detailed — full explanation</option>
+                <option value="executive">Executive — business language</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /stage-config-wrapper -->
+
+      <!-- Inline Stage Summaries (Live Feed) -->
+      <div class="stage-summaries hidden" id="stageSummaries" aria-live="polite">
+        <h3 class="stage-summaries-title">Pipeline Progress</h3>
+        <div class="stage-summaries-list" id="stageSummariesList"></div>
+      </div>
+    </section>
+
+    <!-- Run controls -->
+    <div class="run-controls">
+      <button class="btn-primary" id="runBtn" type="button" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+        Run Analysis
+      </button>
+      <button class="btn-secondary hidden" id="rerunBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+        </svg>
+        Re-run with Updated Settings
+      </button>
+      <div class="status-bar" id="statusBar" role="status" aria-live="polite">Choose a file to begin</div>
+    </div>
+
+    <!-- Results area -->
+    <section class="results-area hidden" id="resultsArea" aria-label="Analysis results">
+
+      <!-- Summary stats -->
+      <div class="results-section">
+        <h2 class="results-section-title">Overview</h2>
+        <div class="summary-grid">
+          <div class="metric-card">
+            <div class="metric-value" id="metricDomain">—</div>
+            <div class="metric-label">Detected Domain</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" id="metricConfidence">—</div>
+            <div class="metric-label">Confidence</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" id="metricRows">—</div>
+            <div class="metric-label">Rows Processed</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" id="metricInsights">—</div>
+            <div class="metric-label">Insights Generated</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Insights -->
+      <div class="results-section">
+        <h2 class="results-section-title">AI Insights</h2>
+        <div class="insight-cards" id="insightCards"></div>
+      </div>
+
+      <!-- Interactive Charts -->
+      <div class="results-section">
+        <h2 class="results-section-title">Interactive Charts</h2>
+        <div class="chart-grid" id="chartGrid"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Chat FAB -->
+  <button class="chat-fab" id="chatFab" type="button" aria-label="Open AI pipeline assistant" title="Ask the pipeline assistant">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/>
+    </svg>
+    <span class="chat-fab-dot" id="chatFabDot" aria-hidden="true"></span>
+  </button>
+
+  <!-- Chat Panel -->
+  <aside class="chat-panel" id="chatPanel" role="complementary" aria-label="AI pipeline assistant">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="chat-header-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="chat-header-title">Pipeline Assistant</div>
+          <div class="chat-header-subtitle">Ollama LLM · Rule engine fallback</div>
+        </div>
+      </div>
+      <button class="chat-close-btn" id="chatCloseBtn" type="button" aria-label="Close assistant panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-welcome">
+        <p>Tell me how to configure the pipeline. I'll adjust controls and you can re-run with the new settings.</p>
+        <div class="chat-chips" id="chatChips">
+          <span class="chat-chip" data-msg="Use median for missing values">Use median imputation</span>
+          <span class="chat-chip" data-msg="Focus on revenue and region">Focus on revenue &amp; region</span>
+          <span class="chat-chip" data-msg="Only show critical insights">Critical insights only</span>
+          <span class="chat-chip" data-msg="Override domain to finance">Set domain: Finance</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" type="text"
+             placeholder="e.g. use median for the salary column…"
+             autocomplete="off" aria-label="Message to pipeline assistant" />
+      <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send message" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5"/>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Insight Deep-Dive Modal (Slide-over) -->
+  <div class="insight-overlay hidden" id="insightOverlay" aria-hidden="true"></div>
+  <aside class="insight-deep-panel closed" id="insightDeepPanel" role="dialog" aria-label="Insight Deep Analysis">
+    <div class="deep-panel-header">
+      <div class="deep-header-content">
+        <span class="badge" id="deepPanelCategory">Analysis</span>
+        <h2 id="deepPanelTitle">Insight Detail</h2>
+      </div>
+      <button class="chat-close-btn" id="deepCloseBtn" type="button" aria-label="Close detail panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="deep-panel-body" id="deepPanelBody">
+      <!-- Loading state -->
+      <div class="deep-loading hidden" id="deepLoading">
+        <div class="spinner"></div>
+        <p>Running deep-dive analysis...</p>
+      </div>
+      
+      <!-- Content state -->
+      <div class="deep-content hidden" id="deepContent">
+        <div class="deep-section">
+          <h3>Extended Explanation</h3>
+          <p id="deepExplanation"></p>
+        </div>
+        
+        <div class="deep-grid">
+          <div class="deep-metric-card">
+            <span class="deep-label">Business Impact</span>
+            <span class="deep-val" id="deepImpact">—</span>
+          </div>
+          <div class="deep-metric-card">
+            <span class="deep-label">Benchmark</span>
+            <span class="deep-val" id="deepBenchmark">—</span>
+          </div>
+          <div class="deep-metric-card">
+            <span class="deep-label">Quick Win (24h)</span>
+            <span class="deep-val" id="deepQuickWin">—</span>
+          </div>
+        </div>
+
+        <div class="deep-section">
+          <h3>Related Metrics</h3>
+          <div class="deep-tags" id="deepTags"></div>
+        </div>
+
+        <div class="deep-section">
+          <h3>Root Cause Hypotheses</h3>
+          <ul class="deep-list" id="deepHypotheses"></ul>
+        </div>
+
+        <div class="deep-section">
+          <h3>Recommended Investigation Steps</h3>
+          <ol class="deep-list numbered" id="deepSteps"></ol>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

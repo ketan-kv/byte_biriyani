@@ -1,0 +1,87 @@
+[
+  {
+    "id": "e82242a0-3a4e-4dcf-bcfd-c6c260ced22b",
+    "severity": "CRITICAL",
+    "insight_type": "risk",
+    "category": "Data Quality",
+    "title": "High missingness in 'commod2' column",
+    "explanation": "92.9% of the 'commod2' data is missing, which could significantly impact analysis and modeling. This might be due to incorrect data collection or inconsistent naming conventions.",
+    "recommendation": "['Investigate the reasons for high missingness', 'Fill missing values with appropriate imputation method']",
+    "confidence": 0.9,
+    "data_refs": [
+      "commod2"
+    ],
+    "deep_analysis": "Explore whether this is a systematic issue across data sources or a one-off problem. Consider collaborating with data providers to resolve the root cause."
+  },
+  {
+    "id": "203bcffe-a628-4560-9dab-18ae9a787835",
+    "severity": "CRITICAL",
+    "insight_type": "anomaly",
+    "category": "Outlier Detection",
+    "title": "Outlier-heavy 'latitude' metric",
+    "explanation": "12.9% of data points in the 'latitude' column are flagged as outliers, which could skew analysis results. This might be due to geographic errors or incorrect data entry.",
+    "recommendation": "['Investigate the reasons for these outliers', 'Filter out these points before further analysis']",
+    "confidence": 0.9,
+    "data_refs": [
+      "latitude"
+    ],
+    "deep_analysis": ""
+  },
+  {
+    "id": "e632d5c9-ba50-44d4-b1b2-313badca19d4",
+    "severity": "WARNING",
+    "insight_type": "opportunity",
+    "category": "Trend Analysis",
+    "title": "Increasing volume by 'region' segment",
+    "explanation": "The 'Eastern' region shows the highest volume, with a 49.2% share of total records. This could indicate stronger operations or more favorable market conditions in that area.",
+    "recommendation": "['Segment revenue by region to identify profitable regions', 'Consider targeted marketing efforts for underperforming regions']",
+    "confidence": 0.8,
+    "data_refs": [
+      "region"
+    ],
+    "deep_analysis": ""
+  },
+  {
+    "id": "3a549150-a6a9-4f52-a7bd-ee330296182e",
+    "severity": "WARNING",
+    "insight_type": "positive",
+    "category": "Data Distribution",
+    "title": "Normal distribution of 'longitude' column",
+    "explanation": "The 'longitude' column shows a normal distribution with mean -98.5 and standard deviation 14.6, which indicates consistent data quality.",
+    "recommendation": "['Monitor longitude data for any unexpected changes']",
+    "confidence": 0.9,
+    "data_refs": [
+      "longitude"
+    ],
+    "deep_analysis": ""
+  },
+  {
+    "id": "f8425d94-577f-451c-b818-3521a4e9f5dc",
+    "severity": "INFO",
+    "insight_type": "trend",
+    "category": "Trend Analysis",
+    "title": "Declining trend in 'commod3' column",
+    "explanation": "The volume of 'commod3' shows a downward trend, with 79.27% of data points accounting for the first 10% of total records. This might indicate a shift in commodity focus or depletion of resources.",
+    "recommendation": "['Investigate reasons for this trend', 'Monitor changes in commodity demand and availability']",
+    "confidence": 0.7,
+    "data_refs": [
+      "commod3"
+    ],
+    "deep_analysis": ""
+  },
+  {
+    "id": "1fe1b8e7-9207-4553-b14a-935f9e012c93",
+    "severity": "INFO",
+    "insight_type": "relationship",
+    "category": "Correlation Analysis",
+    "title": "Negative correlation between 'latitude' and 'longitude' columns",
+    "explanation": "There is a strong negative correlation (-0.45) between the 'latitude' and 'longitude' columns, as expected due to their geometric relationship.",
+    "recommendation": "['Maintain consistent data quality for these columns']",
+    "confidence": 1.0,
+    "data_refs": [
+      "latitude",
+      "longitude"
+    ],
+    "deep_analysis": ""
+  }
+]
